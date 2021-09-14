@@ -1,1 +1,1 @@
-# Hackerrank-SQL-solutions
+# Hackerrank-SQL-solutions (all SQL questions)
