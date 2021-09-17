@@ -9,6 +9,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common import exceptions
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 import argparse
+import multiprocessing
 
 
 class Scraper:
@@ -32,7 +33,7 @@ class Scraper:
 
     def login(self):
         self.browser.get('https://www.hackerrank.com/auth/login')
-        time.sleep(3)
+        time.sleep(5)
         loginbar = self.browser.find_element_by_id("input-1")
         loginbar.send_keys(self.email)
 
@@ -66,13 +67,13 @@ class Scraper:
         for i in range(self.start, self.end):
             current_page_url = f"""https://www.hackerrank.com/submissions/all/page/{i}"""
             print("----------------")
-            print("CURRENT PAGE -> ", current_page_url)
+            print("<- CURRENT PAGE -> ", current_page_url)
             print("----------------")
             self.browser.get(current_page_url)
-            time.sleep(2)
+            time.sleep(4)
             for j in range(0, 10):
                 print(current_page_url, "<- At submission number ->", j)
-                time.sleep(2)
+                time.sleep(4)
                 list_subs = self.browser.find_elements_by_css_selector(
                     "a.challenge-slug.backbone.root")
                 list_subs_lang = self.browser.find_elements_by_css_selector(
@@ -95,12 +96,12 @@ class Scraper:
                     particular_sub_driver.click()
                     challege_tabs = self.browser.find_elements_by_css_selector(
                         "span.ui-icon-label")
-                    time.sleep(0.5)
+                    time.sleep(1)
                     subs_tab = challege_tabs[1].click()
-                    time.sleep(0.5)
+                    time.sleep(1)
                     view_results = self.browser.find_element_by_css_selector(
                         'a.text-link').click()
-                    time.sleep(0.5)
+                    time.sleep(1)
 
                     if ((len(self.browser.find_elements_by_css_selector("span.cm-keyword"))) != 0):
                         text_box = self.browser.find_element_by_css_selector(
@@ -112,7 +113,7 @@ class Scraper:
                         text_box = self.browser.find_element_by_css_selector(
                             "span.cm-meta")
 
-                    time.sleep(0.5)
+                    time.sleep(1)
                     actions = ActionChains(self.browser)
                     actions.move_to_element(text_box)
                     actions.click()
@@ -131,8 +132,7 @@ class Scraper:
                             exit()
 
                 except (exceptions.StaleElementReferenceException):
-                    print(
-                        'Selenium StaleElementReferenceException.')
+                    print('Selenium StaleElementReferenceException.')
                     continue
 
                 lang_used = langauges_dict.get(lang_coded_in)
@@ -151,7 +151,17 @@ class Scraper:
                 print('Successfully scraped')
 
                 self.browser.get(current_page_url)
-                time.sleep(0.5)
+                time.sleep(1)
+
+
+def run(email, password, start, end):
+    instance = Scraper(email, password, start, end)
+    time.sleep(7)
+    instance.login()
+    time.sleep(7)
+    instance.go_to_submissions()
+    time.sleep(7)
+    instance.navigate_and_download()
 
 
 if __name__ == "__main__":
@@ -162,6 +172,9 @@ if __name__ == "__main__":
                         required=True, help="start index")
     parser.add_argument('-e', '--end', type=int,
                         required=True, help="end index")
+    parser.add_argument('-n', '--cores', type=int,
+                        default=1, help="number of cores")
+
     args = parser.parse_args()
     print('---------START---------')
 
@@ -170,12 +183,14 @@ if __name__ == "__main__":
 
     email, password = get_cred.get_credentials()
 
-    instance = Scraper(email, password, args.start, args.end)
-    time.sleep(5)
-    instance.login()
-    time.sleep(5)
-    instance.go_to_submissions()
-    time.sleep(5)
-    instance.navigate_and_download()
+    list_data = []
 
-print('---------DONE---------')
+    for i in range(args.start, args.end, int((args.end)/args.cores)):
+        list_data.append([email, password, int(
+            i), int(i+((args.end)/args.cores))])
+    list_data[-1][3] = args.end
+
+    with multiprocessing.Pool(processes=args.cores) as pool:
+        pool.starmap(run, list_data)
+
+    print('---------DONE---------')
