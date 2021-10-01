@@ -1,1 +1,1 @@
-select distinct(city) from station where city REGEXP "^[^aeiouAEIOU]";
+select distinct(city) from station where city REGEXP "^[^aeiouAEIOU]" ;
